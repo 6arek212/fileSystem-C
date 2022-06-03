@@ -26,7 +26,6 @@ struct disk_block
 
 struct myopenfile
 {
-    int current_block;
     int offset;
     int inode;
 };
@@ -35,14 +34,13 @@ struct dirent
 {
     int inode;
     char name[NAME_LENGTH];
-}
+};
 
-void
-create_fs();     // initialize new filesystem
+void create_fs();     // initialize new filesystem
 void mount_fs(); // load a file system
 void sync_fs();  // write the file system
 
-int allocate_file(char *name);
+int allocate_file();
 void set_filesize(int fd, int size);
 void write_byte(int fd, int pos, char *data);
 

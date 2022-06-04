@@ -2,13 +2,11 @@
 CC = gcc
 W = -Wall
 
-.PHONEY : clean
+.PHONEY : clean all
 
 
 
-
-file_prog: libmyfs.so libmylibc.so
-	$(CC) $(W) -o file_prog ./libmyfs.so ./libmylibc.so
+all: test
 
 
 

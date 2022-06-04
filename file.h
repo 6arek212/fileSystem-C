@@ -1,6 +1,5 @@
 #include <sys/types.h>
 
-
 #define READ 1
 #define READ_WRITE 2
 #define WRITE 3
@@ -10,7 +9,7 @@ typedef struct myFILE
 {
     int fd;
     char *path;
-    const char *restrict mode;
+    int mode;
 } myFILE;
 
 myFILE *myfopen(const char *restrict pathname, const char *restrict mode);

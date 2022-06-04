@@ -8,6 +8,8 @@
 struct superblock sb;
 struct inode *inodes;
 struct disk_block *dbs;
+const char *fs;
+int save_to_disk;
 
 struct myopenfile *opened_files[MAX_FILES];
 
@@ -101,6 +103,21 @@ int find_empty_inode()
     return -1;
 }
 
+int allocate_file()
+{
+    // find an empty inode
+    int in = find_empty_inode();
+    int block = find_empty_block();
+
+    inodes[in].first_block = block;
+    dbs[block].next_block_num = -2;
+
+    inodes[in].size = BLOCK_SIZE;
+    inodes[in].actual_size = 0;
+
+    return in;
+}
+
 /**
  * @brief Create a fs object
  *
@@ -149,8 +166,13 @@ int mymount(const char *path)
     {
         free(dbs);
     }
-
+    fs = path;
     FILE *file = fopen(path, "r");
+    if (!file)
+    {
+        return -1;
+    }
+
     // superblock
     fread(&sb, sizeof(struct superblock), 1, file);
 
@@ -164,6 +186,7 @@ int mymount(const char *path)
     fread(dbs, sizeof(struct disk_block), sb.num_blocks, file);
 
     fclose(file);
+    return 1;
 }
 
 void sync_fs(const char *path)
@@ -182,21 +205,6 @@ void sync_fs(const char *path)
     fclose(file);
 }
 
-int allocate_file()
-{
-    // find an empty inode
-    int in = find_empty_inode();
-    int block = find_empty_block();
-
-    inodes[in].first_block = block;
-    dbs[block].next_block_num = -2;
-
-    inodes[in].size = BLOCK_SIZE;
-    inodes[in].actual_size = 0;
-
-    return in;
-}
-
 void write_byte(int inode, int pos, char *data)
 {
     if (pos >= inodes[inode].actual_size)
@@ -211,19 +219,6 @@ void write_byte(int inode, int pos, char *data)
     int offset = pos % BLOCK_SIZE;
 
     dbs[b_num].data[offset] = *data;
-
-    // // sync inode
-    // FILE *file = fopen("fs_data", "w+");
-    // int r_pos = sizeof(struct superblock) + inode;
-    // fseek(file, r_pos, SEEK_SET);
-    // fwrite(&inodes[inode], sizeof(struct inode), 1, file);
-
-    // // // sync block
-
-    // r_pos = sizeof(struct superblock) + sizeof(struct inode) * sb.num_inodes + relative_block;
-    // fseek(file, r_pos, SEEK_SET);
-    // fwrite(&dbs[relative_block], sizeof(struct disk_block), 1, file);
-    // fclose(file);
 }
 
 void printofd(int ofd)
@@ -267,29 +262,6 @@ size_t myread(int ofd, void *buf, size_t count)
 
     // printf("--------------readend\n");
     return c;
-}
-
-size_t mywrite(int ofd, const void *buf, size_t count)
-{
-    // printofd(ofd);
-    struct myopenfile *p = opened_files[ofd];
-    int inode = p->inode;
-    int size = inodes[p->inode].size;
-
-    if (p->offset + count - 1 >= size)
-    {
-        set_filesize(inode, p->offset + count);
-    }
-
-    char *b = (char *)buf;
-    for (size_t i = 0; i < count; i++)
-    {
-        write_byte(p->inode, p->offset, b);
-        p->offset++;
-        b++;
-    }
-
-    return count;
 }
 
 void shrink_file(int b_num)
@@ -336,6 +308,34 @@ int set_filesize(int inode, int size)
     shrink_file(b_num);
     dbs[b_num].next_block_num = -2;
     return 1;
+}
+
+size_t mywrite(int ofd, const void *buf, size_t count)
+{
+    // printofd(ofd);
+    struct myopenfile *p = opened_files[ofd];
+    int inode = p->inode;
+    int size = inodes[p->inode].size;
+
+    if (p->offset + count - 1 >= size)
+    {
+        set_filesize(inode, p->offset + count);
+    }
+
+    char *b = (char *)buf;
+    for (size_t i = 0; i < count; i++)
+    {
+        write_byte(p->inode, p->offset, b);
+        p->offset++;
+        b++;
+    }
+
+    if (save_to_disk)
+    {
+        sync_fs(fs);
+    }
+
+    return count;
 }
 
 int get_file_descriptor(int inode)
@@ -418,6 +418,26 @@ int get_last_dir_inode_from_path(const char *path)
     return i;
 }
 
+int create_file(int dir_inode, const char *filename)
+{
+
+    // create the file
+    int ofd = get_file_descriptor(dir_inode);
+    mylseek(ofd, 0, SEEK_END);
+
+    struct dirent d;
+    d.inode = allocate_file();
+    strcpy(d.name, filename);
+
+    char *p = (char *)&d;
+
+    mywrite(ofd, p, sizeof(struct dirent));
+
+    myclose(ofd);
+
+    return d.inode;
+}
+
 int myopen(const char *path, int flags)
 {
     // printf("------------------\n");
@@ -496,37 +516,19 @@ void print_fs()
     printf("Blocks number: %d\n", sb.num_blocks);
     printf("Block size: %d\n", sb.size_blocks);
 
-    for (size_t i = 0; i < sb.num_inodes; i++)
+    printf("first 20 inode:\n");
+    for (size_t i = 0; i < 20; i++)
     {
         printf("\tsize: %d block: %d  actual size : %d\n", inodes[i].size, inodes[i].first_block, inodes[i].actual_size);
     }
 
-    for (int i = 0; i < sb.num_blocks; i++)
+    printf("first 20 blocks:\n");
+    for (int i = 0; i < 20; i++)
     {
-        printf("\tblock num: %d  next block: %d  len: %d\n", i, dbs[i].next_block_num, (int)strlen(dbs[i].data));
+        printf("\tblock num: %d  next block: %d\n", i, dbs[i].next_block_num);
     }
 
     printf("\n\n\n");
-}
-
-int create_file(int dir_inode, char *filename)
-{
-
-    // create the file
-    int ofd = get_file_descriptor(dir_inode);
-    mylseek(ofd, 0, SEEK_END);
-
-    struct dirent d;
-    d.inode = allocate_file();
-    strcpy(d.name, filename);
-
-    char *p = (char *)&d;
-
-    mywrite(ofd, p, sizeof(struct dirent));
-
-    myclose(ofd);
-
-    return d.inode;
 }
 
 myDIR *myopendir(const char *dirp)
@@ -581,7 +583,7 @@ void init_fs2()
     if (fd < 0)
     {
         perror("Error");
-        return -1;
+        return;
     }
 
     char a = 'a';
@@ -591,7 +593,7 @@ void init_fs2()
     }
 
     myclose(fd);
-    // sync_fs("fs_data2");
+    sync_fs("fs_data2");
 }
 
 void init_fs1()
@@ -605,7 +607,7 @@ void init_fs1()
     if (fd < 0)
     {
         perror("Error");
-        return -1;
+        return;
     }
 
     char a = 'a';
@@ -616,6 +618,11 @@ void init_fs1()
 
     myclose(fd);
     sync_fs("fs_data1");
+}
+
+void set_save_to_disk(int mode)
+{
+    save_to_disk = mode;
 }
 
 // int main(int argc, char const *argv[])

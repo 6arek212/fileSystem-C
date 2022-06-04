@@ -65,7 +65,7 @@ myFILE *myfopen(const char *restrict pathname, const char *restrict mode)
         f = (myFILE *)malloc(sizeof(myFILE));
         f->fd = fd;
         f->mode = READ;
-        return;
+        return f;
     }
 
     if (!strcmp(mode, "r+"))
@@ -78,7 +78,7 @@ myFILE *myfopen(const char *restrict pathname, const char *restrict mode)
         f = (myFILE *)malloc(sizeof(myFILE));
         f->fd = fd;
         f->mode = READ_WRITE;
-        return;
+        return f;
     }
 
     fd = myopen(pathname, O_CREAT);
@@ -92,34 +92,40 @@ myFILE *myfopen(const char *restrict pathname, const char *restrict mode)
     if (!strcmp(mode, "w+"))
     {
         f->mode = READ_WRITE;
-        return;
+        return f;
     }
 
     if (!strcmp(mode, "w"))
     {
         f->mode = WRITE;
-        return;
+        return f;
     }
 
     if (!strcmp(mode, "a"))
     {
         mylseek(f->fd, 0, SEEK_END);
         f->mode = WRITE;
-        return;
+        return f;
     }
 
     if (!strcmp(mode, "a+"))
     {
         mylseek(f->fd, 0, SEEK_END);
         f->mode = READ_WRITE;
-        return;
+        return f;
     }
+
+    return NULL;
 }
 
 int myfclose(myFILE *stream)
 {
-    myclose(stream->fd);
+    if (myclose(stream->fd) < 0)
+    {
+        return -1;
+    }
     free(stream);
+    return 1;
 }
 
 size_t myfread(void *restrict ptr, size_t size, size_t nmemb, myFILE *restrict stream)
@@ -147,20 +153,12 @@ int myfseek(myFILE *stream, long offset, int whence)
     return mylseek(stream->fd, offset, whence);
 }
 
-int count_int_vars(const char *str)
-{
-
-    int cnt = 0;
-
-    char *strcpy = (char *)malloc(sizeof(char) * strlen(str));
-    char *p = strtok(strcpy, "%d");
-}
 
 int myfscanf(myFILE *restrict stream, const char *restrict format, ...)
 {
     va_list vl;
     int i = 0, j = 0, ret = 0;
-    char buff[100] = {0}, tmp[20], c = '\0';
+    char buff[100] = {0}, c = '\0';
     char *out_loc;
     while (c != '\n')
     {

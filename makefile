@@ -28,7 +28,7 @@ test.o: test.c
 
 
 fs.o: fs.c fs.h
-	$(CC) $(W) -fPIC  -c fs.c
+	$(CC) $(W) -fPIC -c fs.c
 
 
 file.o: file.c

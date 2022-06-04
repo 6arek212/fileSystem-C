@@ -157,9 +157,8 @@ int main(int argc, char const *argv[])
     test_myread_mywrite();
 
     test_mount();
-    print_fs();
 
-    
+    print_fs();
     printf("test successfull :D\n");
     return 0;
 }

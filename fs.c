@@ -5,15 +5,13 @@
 #include <sys/types.h>
 // #include <unistd.h>
 
-#define O_CREAT 1
-
 struct superblock sb;
 struct inode *inodes;
 struct disk_block *dbs;
 
 struct myopenfile *opened_files[MAX_FILES];
 
-int get_dir_num(char *path)
+int get_dir_num(const char *path)
 {
     if (strlen(path) == 0)
     {
@@ -36,9 +34,14 @@ int get_dir_num(char *path)
     return cnt;
 }
 
-char *get_filename(char *path)
+const char *get_filename(const char *path)
 {
-    char *p = strlen(path) - 1 + path;
+    if (strlen(path) == 1)
+    {
+        return path;
+    }
+
+    const char *p = strlen(path) - 1 + path;
     while (*p != '/')
     {
         p--;
@@ -68,6 +71,7 @@ int get_free_opened_file_index()
             return i;
         }
     }
+    perror("No Empty fd left");
     return -1;
 }
 
@@ -80,6 +84,7 @@ int find_empty_block()
             return i;
         }
     }
+    perror("No Empty blocks left");
     return -1;
 }
 
@@ -92,17 +97,8 @@ int find_empty_inode()
             return i;
         }
     }
-
+    perror("No Empty inodes left");
     return -1;
-}
-
-void move_cursur(struct myopenfile *op)
-{
-    // if ((op->offset + 1) % BLOCK_SIZE == 0 && op->offset + 1 > 0 && dbs[op->current_block].next_block_num != -2)
-    // {
-    //     op->current_block = dbs[op->current_block].next_block_num;
-    // }
-    op->offset++;
 }
 
 /**
@@ -215,7 +211,7 @@ void printofd(int ofd)
 
 size_t myread(int ofd, void *buf, size_t count)
 {
-    printf("--------------read\n");
+    // printf("--------------read\n");
     struct myopenfile *p = opened_files[ofd];
 
     int actual_size = inodes[p->inode].actual_size;
@@ -224,13 +220,13 @@ size_t myread(int ofd, void *buf, size_t count)
 
     int c = max_read_bytes > count ? count : max_read_bytes;
 
-    printofd(ofd);
-    printf("actual size: %d\n", actual_size);
-    printf("count: %d\n", count);
-    printf("max_read_bytes: %d\n", max_read_bytes);
-    printf("bytes to read: %d\n", c);
+    // printofd(ofd);
+    // printf("actual size: %d\n", actual_size);
+    // printf("count: %d\n", count);
+    // printf("max_read_bytes: %d\n", max_read_bytes);
+    // printf("bytes to read: %d\n", c);
 
-    int offset_block = (p->offset + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    int offset_block = p->offset / BLOCK_SIZE;
     int current_block = get_block(p->inode, offset_block);
 
     char *b = (char *)buf;
@@ -246,7 +242,7 @@ size_t myread(int ofd, void *buf, size_t count)
         b++;
     }
 
-    printf("--------------readend\n");
+    // printf("--------------readend\n");
     return c;
 }
 
@@ -263,7 +259,6 @@ size_t mywrite(int ofd, const void *buf, size_t count)
     }
 
     char *b = (char *)buf;
-    int pos;
     for (size_t i = 0; i < count; i++)
     {
         write_byte(p->inode, p->offset, b);
@@ -286,7 +281,7 @@ void shrink_file(int b_num)
 }
 
 // add / delete blocks
-void set_filesize(int inode, int size)
+int set_filesize(int inode, int size)
 {
     int num = size / BLOCK_SIZE;
     if (size % BLOCK_SIZE > 0)
@@ -304,6 +299,10 @@ void set_filesize(int inode, int size)
         if (next_num == -2)
         {
             int empty = find_empty_block();
+            if (empty < 0)
+            {
+                return -1;
+            }
             dbs[b_num].next_block_num = empty;
             dbs[empty].next_block_num = -2;
         }
@@ -313,6 +312,7 @@ void set_filesize(int inode, int size)
 
     shrink_file(b_num);
     dbs[b_num].next_block_num = -2;
+    return 1;
 }
 
 int get_file_descriptor(int inode)
@@ -342,7 +342,7 @@ int myclose(int ofd)
  * @param filename a null terminated string
  * @return int
  */
-int get_inode_from_dir(int inode, char *filename)
+int get_inode_from_dir(int inode, const char *filename)
 {
     int ofd = get_file_descriptor(inode);
     int b;
@@ -363,7 +363,7 @@ int get_inode_from_dir(int inode, char *filename)
     return -1;
 }
 
-int get_last_dir_inode_from_path(char *path)
+int get_last_dir_inode_from_path(const char *path)
 {
     if (strlen(path) == 0)
     {
@@ -395,28 +395,27 @@ int get_last_dir_inode_from_path(char *path)
     return i;
 }
 
-
-int myopen(char *path, int flags)
+int myopen(const char *path, int flags)
 {
-    printf("------------------\n");
+    // printf("------------------\n");
 
     int dir_inode = get_last_dir_inode_from_path(path);
-    printf("last dir inode: %d\n", dir_inode);
+    // printf("last dir inode: %d\n", dir_inode);
 
     if (dir_inode == -1)
     {
         printf("path is not correct\n");
         return -1;
     }
-    char *filename = get_filename(path);
+    const char *filename = get_filename(path);
     int file_indoe = get_inode_from_dir(dir_inode, filename);
-    printf("file inode %d\n", file_indoe);
+    // printf("file inode %d\n", file_indoe);
 
     if (file_indoe < 0)
     {
         if (flags == O_CREAT)
         {
-            file_indoe = make_file(dir_inode, filename);
+            file_indoe = create_file(dir_inode, filename);
         }
         else
         {
@@ -424,7 +423,7 @@ int myopen(char *path, int flags)
         }
     }
 
-    printf("------------------\n\n");
+    // printf("------------------\n\n");
 
     return get_file_descriptor(file_indoe);
 }
@@ -466,6 +465,7 @@ off_t mylseek(int ofd, off_t offset, int whence)
 
 void print_fs()
 {
+    printf("\n\n\n");
     printf("Super block info :\n");
     printf("Inodes number: %d\n", sb.num_inodes);
     printf("Blocks number: %d\n", sb.num_blocks);
@@ -480,9 +480,11 @@ void print_fs()
     {
         printf("\tblock num: %d  next block: %d  len: %d\n", i, dbs[i].next_block_num, (int)strlen(dbs[i].data));
     }
+
+    printf("\n\n\n");
 }
 
-int make_file(int dir_inode, char *filename)
+int create_file(int dir_inode, char *filename)
 {
     // TODO: check if there is a file same with same name !
 
@@ -503,54 +505,131 @@ int make_file(int dir_inode, char *filename)
     return d.inode;
 }
 
-int main(int argc, char const *argv[])
+myDIR *myopendir(const char *dirp)
 {
-    create_fs();
+    int dir_inode = get_last_dir_inode_from_path(dirp);
+    // printf("++++++++dir_inode %d\n", dir_inode);
 
-    make_file(make_file(0, "inner"), "inner2");
-    make_file(0, "dir2");
-    make_file(0, "dir3");
+    const char *dirname = get_filename(dirp);
+    // printf("++++++++dirname: %s\n", dirname);
 
-    // mount_fs();
-    // set_filesize(0, 1000);
-    char buf[4000];
-
-    // print_fs();
-    int fd = myopen("/inner/inner2/a1.txt", O_CREAT);
-    if (fd < 0)
+    if (dir_inode > 0)
     {
-        perror("Error");
+        dir_inode = get_inode_from_dir(dir_inode, dirname);
+        // printf("++++++++dir_inode %d\n", dir_inode);
+    }
+
+    myDIR *dir = (myDIR *)malloc(sizeof(struct myDIR));
+    dir->ofd = get_file_descriptor(dir_inode);
+    return dir;
+}
+
+struct dirent *myreaddir(myDIR *dir)
+{
+    if (myread(dir->ofd, (char *)dir + sizeof(int), sizeof(struct dirent)) > 0)
+    {
+        return &dir->ent;
+    }
+    return NULL;
+}
+
+int myclosedir(myDIR *dir)
+{
+    if (myclose(dir->ofd) < 0)
+    {
         return -1;
     }
+    free(dir);
+    return 1;
+}
 
-    int fd2 = myopen("/inner/inner2/a1.txt", O_CREAT);
+void init_fs()
+{
+    create_fs();
+    create_file(create_file(0, "inner"), "inner2");
+    create_file(0, "dir2");
+    create_file(0, "dir3");
 
-    char a = 'a';
-    for (size_t i = 0; i < 1024; i++)
-    {
-        mywrite(fd, &a, sizeof(char));
-    }
+    // int fd = myopen("/inner/inner2/a1.txt", O_CREAT);
+    // if (fd < 0)
+    // {
+    //     perror("Error");
+    //     return -1;
+    // }
 
-    printf("+++++++++++++++++++++++++++++++++++++\n");
-    mylseek(fd, 0, SEEK_END);
-    printofd(fd);
-    printf("+++++++++++++++++++++++++++++++++++++\n");
-    for (size_t i = 0; i < 1024; i++)
-    {
-        mywrite(fd, &a, sizeof(char));
-    }
-
-    printf("+++++++++++++++++++++++++++++++++++++\n");
-    mylseek(fd, 0, SEEK_SET);
-    printofd(fd);
-    printf("+++++++++++++++++++++++++++++++++++++\n");
-
-    int x = myread(fd, buf, 25000);
-    buf[x] = '\0';
-    printf("%s %d\n", buf, strlen(buf));
-    print_fs();
+    // char a = 'a';
+    // for (size_t i = 0; i < 5; i++)
+    // {
+    //     mywrite(fd, &a, sizeof(char));
+    // }
 
     // myclose(fd);
-
-    return 0;
 }
+
+// int main(int argc, char const *argv[])
+// {
+//     // create_fs();
+
+//     // create_file(create_file(0, "inner"), "inner2");
+//     // create_file(0, "dir2");
+//     // create_file(0, "dir3");
+
+//     mount_fs();
+//     // set_filesize(0, 1000);
+//     char buf[25000];
+
+//     // // print_fs();
+//     int fd = myopen("/inner/inner2/a1.txt", O_CREAT);
+//     if (fd < 0)
+//     {
+//         perror("Error");
+//         return -1;
+//     }
+
+//     printf("\n\n\n\n");
+
+//     myDIR *dir = myopendir("/");
+//     printf("dir ofd: %d\n", dir->ofd);
+
+//     struct dirent *d;
+//     printf("------------------------------------------------------>\n");
+//     while ((d = myreaddir(dir)))
+//     {
+//         printf("name: %s\n", d->name);
+//     }
+
+//     myclosedir(dir);
+//     // int fd2 = myopen("/inner/inner2/a1.txt", O_CREAT);
+//     mylseek(fd, 0, SEEK_END);
+//     char a = 'a';
+//     for (size_t i = 0; i < 1024; i++)
+//     {
+//         mywrite(fd, &a, sizeof(char));
+//     }
+
+//     // printf("+++++++++++++++++++++++++++++++++++++\n");
+//     // mylseek(fd, 0, SEEK_END);
+//     // printofd(fd);
+//     // printf("+++++++++++++++++++++++++++++++++++++\n");
+//     // for (size_t i = 0; i < 1024; i++)
+//     // {
+//     //     mywrite(fd, &a, sizeof(char));
+//     // }
+
+//     printf("+++++++++++++++++++++++++++++++++++++\n");
+//     mylseek(fd, 0, SEEK_SET);
+//     printofd(fd);
+//     printf("+++++++++++++++++++++++++++++++++++++\n");
+
+//     int x = myread(fd, buf, 25000);
+//     buf[x] = '\0';
+//     printf("%s %d\n", buf, (int)strlen(buf));
+
+//     myclose(fd);
+
+//     sync_fs();
+
+//     print_fs();
+
+//     return 0;
+// }

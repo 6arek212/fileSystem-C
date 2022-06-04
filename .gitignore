@@ -2,3 +2,7 @@
 fs_program 
 
 fs_data
+
+file_prog
+
+*.o

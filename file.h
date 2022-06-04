@@ -10,7 +10,7 @@ typedef struct myFILE
 {
     int fd;
     char *path;
-    const char *restrict mode
+    const char *restrict mode;
 } myFILE;
 
 myFILE *myfopen(const char *restrict pathname, const char *restrict mode);

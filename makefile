@@ -7,16 +7,30 @@ W = -Wall
 
 
 
-file_prog: fs.o file.o
-	$(CC) $(W) -o file_prog fs.o file.o
+file_prog: libmyfs.so libmylibc.so
+	$(CC) $(W) -o file_prog ./libmyfs.so ./libmylibc.so
 
-fs_program: fs.o
-	$(CC) $(W) -o fs_program fs.o
 
+
+test: libmyfs.so libmylibc.so test.o 
+	$(CC) $(W) -o test test.o ./libmyfs.so ./libmylibc.so
+
+
+
+libmylibc.so: file.o
+	$(CC) $(W) --shared -o libmylibc.so file.o
+
+libmyfs.so: fs.o
+	$(CC) $(W) --shared -o libmyfs.so fs.o
+
+
+
+test.o: test.c
+	$(CC) $(W) -c test.c
 
 
 fs.o: fs.c fs.h
-	$(CC) $(W) -c fs.c
+	$(CC) $(W) -fPIC  -c fs.c
 
 
 file.o: file.c
@@ -25,4 +39,4 @@ file.o: file.c
 
 
 clean:
-	rm -rf *.o fs_program
+	rm -rf *.o fs_program test fs_data *.so

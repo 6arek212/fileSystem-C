@@ -215,7 +215,6 @@ int myfscanf(myFILE *restrict stream, const char *restrict format, ...)
         }
         i++;
     }
-    printf("//%s\n", buff);
     va_end(vl);
     myfseek(stream, j, SEEK_SET);
     return ret;
@@ -275,33 +274,33 @@ int myfprintf(myFILE *restrict stream, const char *restrict format, ...)
     return j;
 }
 
-int main(int argc, char const *argv[])
-{
-    init_fs();
+// int main(int argc, char const *argv[])
+// {
+//     init_fs();
 
-    myFILE *f = myfopen("/inner/inner2/a1.txt", "w+");
+//     myFILE *f = myfopen("/inner/inner2/a1.txt", "w+");
 
-    // myfwrite("1 2", 1, 2, f);
-    myfprintf(f, "%d %d", 15, 66);
+//     // myfwrite("1 2", 1, 2, f);
+//     myfprintf(f, "%d %d", 15, 66);
 
-    int x;
-    int y;
+//     int x;
+//     int y;
 
-    myfseek(f, 0, SEEK_SET);
+//     myfseek(f, 0, SEEK_SET);
 
-    myfscanf(f, "%d %d", &x, &y);
+//     myfscanf(f, "%d %d", &x, &y);
 
-    // myfscanf(f, "%d", &x);
-    // myfscanf(f, "%d", &y);
+//     // myfscanf(f, "%d", &x);
+//     // myfscanf(f, "%d", &y);
 
-    printf("++>%d %d\n", x, y);
+//     printf("++>%d %d\n", x, y);
 
-    myfseek(f, 0, SEEK_SET);
+//     myfseek(f, 0, SEEK_SET);
 
-    char buf[500];
-    int b = myfread(buf, 1, 29, f);
-    buf[b] = '\0';
-    printf("%s\n", buf);
+//     char buf[500];
+//     int b = myfread(buf, 1, 29, f);
+//     buf[b] = '\0';
+//     printf("%s\n", buf);
 
-    return 0;
-}
+//     return 0;
+// }

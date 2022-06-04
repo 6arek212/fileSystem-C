@@ -138,9 +138,19 @@ void create_fs()
  *      mounting the file system from file
  *
  */
-void mount_fs()
+int mymount(const char *path)
 {
-    FILE *file = fopen("fs_data", "r");
+    if (inodes)
+    {
+        free(inodes);
+    }
+
+    if (dbs)
+    {
+        free(dbs);
+    }
+
+    FILE *file = fopen(path, "r");
     // superblock
     fread(&sb, sizeof(struct superblock), 1, file);
 
@@ -156,9 +166,9 @@ void mount_fs()
     fclose(file);
 }
 
-void sync_fs()
+void sync_fs(const char *path)
 {
-    FILE *file = fopen("fs_data", "w+");
+    FILE *file = fopen(path, "w+");
 
     // superblock
     fwrite(&sb, sizeof(struct superblock), 1, file);
@@ -201,6 +211,19 @@ void write_byte(int inode, int pos, char *data)
     int offset = pos % BLOCK_SIZE;
 
     dbs[b_num].data[offset] = *data;
+
+    // // sync inode
+    // FILE *file = fopen("fs_data", "w+");
+    // int r_pos = sizeof(struct superblock) + inode;
+    // fseek(file, r_pos, SEEK_SET);
+    // fwrite(&inodes[inode], sizeof(struct inode), 1, file);
+
+    // // // sync block
+
+    // r_pos = sizeof(struct superblock) + sizeof(struct inode) * sb.num_inodes + relative_block;
+    // fseek(file, r_pos, SEEK_SET);
+    // fwrite(&dbs[relative_block], sizeof(struct disk_block), 1, file);
+    // fclose(file);
 }
 
 void printofd(int ofd)
@@ -408,6 +431,7 @@ int myopen(const char *path, int flags)
         return -1;
     }
     const char *filename = get_filename(path);
+    // printf("filename: %s\n" , filename);
     int file_indoe = get_inode_from_dir(dir_inode, filename);
     // printf("file inode %d\n", file_indoe);
 
@@ -417,13 +441,14 @@ int myopen(const char *path, int flags)
         {
             file_indoe = create_file(dir_inode, filename);
         }
-        else
-        {
-            return -1;
-        }
     }
 
-    // printf("------------------\n\n");
+    if (file_indoe < 0)
+    {
+        return -1;
+    }
+
+    // printf("%d------------------\n\n", file_indoe);
 
     return get_file_descriptor(file_indoe);
 }
@@ -486,7 +511,6 @@ void print_fs()
 
 int create_file(int dir_inode, char *filename)
 {
-    // TODO: check if there is a file same with same name !
 
     // create the file
     int ofd = get_file_descriptor(dir_inode);
@@ -513,7 +537,7 @@ myDIR *myopendir(const char *dirp)
     const char *dirname = get_filename(dirp);
     // printf("++++++++dirname: %s\n", dirname);
 
-    if (dir_inode > 0)
+    if (strcmp(dirname, "/") && dir_inode >= 0)
     {
         dir_inode = get_inode_from_dir(dir_inode, dirname);
         // printf("++++++++dir_inode %d\n", dir_inode);
@@ -543,27 +567,55 @@ int myclosedir(myDIR *dir)
     return 1;
 }
 
-void init_fs()
+void init_fs2()
+{
+    create_fs();
+    create_file(create_file(0, "inner-dir"), "inner-dir2");
+    create_file(0, "dir2");
+    create_file(0, "dir3");
+    create_file(0, "dir4");
+    create_file(0, "dir5");
+    create_file(0, "dir6");
+
+    int fd = myopen("/inner-dir/inner-dir2/myfile.txt", O_CREAT);
+    if (fd < 0)
+    {
+        perror("Error");
+        return -1;
+    }
+
+    char a = 'a';
+    for (size_t i = 0; i < 55; i++)
+    {
+        mywrite(fd, &a, sizeof(char));
+    }
+
+    myclose(fd);
+    // sync_fs("fs_data2");
+}
+
+void init_fs1()
 {
     create_fs();
     create_file(create_file(0, "inner"), "inner2");
     create_file(0, "dir2");
     create_file(0, "dir3");
 
-    // int fd = myopen("/inner/inner2/a1.txt", O_CREAT);
-    // if (fd < 0)
-    // {
-    //     perror("Error");
-    //     return -1;
-    // }
+    int fd = myopen("/inner/inner2/a3.txt", O_CREAT);
+    if (fd < 0)
+    {
+        perror("Error");
+        return -1;
+    }
 
-    // char a = 'a';
-    // for (size_t i = 0; i < 5; i++)
-    // {
-    //     mywrite(fd, &a, sizeof(char));
-    // }
+    char a = 'a';
+    for (size_t i = 0; i < 512; i++)
+    {
+        mywrite(fd, &a, sizeof(char));
+    }
 
-    // myclose(fd);
+    myclose(fd);
+    sync_fs("fs_data1");
 }
 
 // int main(int argc, char const *argv[])

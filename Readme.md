@@ -48,6 +48,8 @@ In this project we have implemented a file system in C .
 
 A big part of "myfscanf" and "myfprintf" was taken from this implemntation : https://www.equestionanswers.com/c/c-printf-scanf-working-principle.php
 
+Also we used some code from here: https://www.youtube.com/watch?v=n2AAhiujAqs
+
 </br>
 
 my file system will write to the disk automaticly only when "set_save_to_disk()" is set to "AUTO_MODE" , by defualt its set to "MANUAL MODE" which means to save the updated file system is by calling "sync_fs()" function , this was done so you can run the test multipule times and get the same result , in the test program we dont update the file system on the disk , only in RAM  , in other words "sync_fs()" will not be called at all !
@@ -86,7 +88,6 @@ File system "fs_data2" will have:
 
 </br>
 
-
 Defualt values:
 
     BLOCK SIZE                  512
@@ -94,6 +95,27 @@ Defualt values:
     NUMBER OF BLOCKS            1000
     NAME LENGTH                 256
     MAX OPENED FILES            1000
+
+</br>
+
+
+You can mount these files systems by using "mymount"
+
+    mymount(const char *path);
+
+    mymount("fs_data1");
+
+
+    //to check that it works !
+
+    int fd = myopen("/inner/inner2/a3.txt", O_CREAT);
+    char buff[20];
+
+    int b = myread(fd, buff, 10);
+    buff[b] = '\0';
+    printf("%s\n",buff);
+    
+
 
 
 </br>

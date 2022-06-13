@@ -2,8 +2,6 @@
 #include <sys/types.h>
 
 #define BLOCK_SIZE 512
-#define INODE_NUM 100
-#define BLOCKS_NUM 1000
 #define NAME_LENGTH 256
 #define MAX_FILES 1000
 
@@ -54,8 +52,8 @@ typedef struct myDIR
     struct dirent ent;
 } myDIR;
 
-void create_fs(); // initialize new filesystem
-void sync_fs();   // write the file system
+void mymkfs(int size); // init new fs
+void sync_fs(const char *path);   // write the file system
 void init_fs1();
 void init_fs2();
 void print_fs();

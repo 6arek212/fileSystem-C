@@ -6,8 +6,10 @@ W = -Wall
 
 
 
-all: test
+all: test demo
 
+demo: libmyfs.so libmylibc.so test.o demo.o
+	$(CC) $(W) -o demo demo.o ./libmyfs.so ./libmylibc.so
 
 
 test: libmyfs.so libmylibc.so test.o 
@@ -21,6 +23,9 @@ libmylibc.so: file.o
 libmyfs.so: fs.o
 	$(CC) $(W) --shared -o libmyfs.so fs.o
 
+
+demo.o: demo.c
+	$(CC) $(W) -c demo.c
 
 
 test.o: test.c
@@ -37,4 +42,4 @@ file.o: file.c
 
 
 clean:
-	rm -rf *.o fs_program test fs_data *.so
+	rm -rf *.o fs_program test fs_data *.so demo

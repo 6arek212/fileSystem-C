@@ -124,11 +124,19 @@ int allocate_file()
  *
  *
  */
-void create_fs()
+void mymkfs(int size)
 {
-    sb.num_inodes = INODE_NUM;
-    sb.num_blocks = BLOCKS_NUM;
+    int s = size;
+    s -= sizeof(struct superblock);
+
+    sb.num_inodes = (s * 10 / 100) / sizeof(struct inode);
+    s -= s * 10 / 100;
+
+    sb.num_blocks = s / sizeof(struct disk_block);
+
     sb.size_blocks = sizeof(struct disk_block);
+
+    printf("-->inode: %d  block: %d\n", sb.num_inodes, sb.num_blocks);
 
     inodes = (struct inode *)malloc(sizeof(struct inode) * sb.num_inodes);
 
@@ -571,7 +579,7 @@ int myclosedir(myDIR *dir)
 
 void init_fs2()
 {
-    create_fs();
+    mymkfs(1112);
     create_file(create_file(0, "inner-dir"), "inner-dir2");
     create_file(0, "dir2");
     create_file(0, "dir3");
@@ -598,7 +606,7 @@ void init_fs2()
 
 void init_fs1()
 {
-    create_fs();
+    mymkfs(1112);
     create_file(create_file(0, "inner"), "inner2");
     create_file(0, "dir2");
     create_file(0, "dir3");
@@ -624,71 +632,3 @@ void set_save_to_disk(int mode)
 {
     save_to_disk = mode;
 }
-
-// int main(int argc, char const *argv[])
-// {
-//     // create_fs();
-
-//     // create_file(create_file(0, "inner"), "inner2");
-//     // create_file(0, "dir2");
-//     // create_file(0, "dir3");
-
-//     mount_fs();
-//     // set_filesize(0, 1000);
-//     char buf[25000];
-
-//     // // print_fs();
-//     int fd = myopen("/inner/inner2/a1.txt", O_CREAT);
-//     if (fd < 0)
-//     {
-//         perror("Error");
-//         return -1;
-//     }
-
-//     printf("\n\n\n\n");
-
-//     myDIR *dir = myopendir("/");
-//     printf("dir ofd: %d\n", dir->ofd);
-
-//     struct dirent *d;
-//     printf("------------------------------------------------------>\n");
-//     while ((d = myreaddir(dir)))
-//     {
-//         printf("name: %s\n", d->name);
-//     }
-
-//     myclosedir(dir);
-//     // int fd2 = myopen("/inner/inner2/a1.txt", O_CREAT);
-//     mylseek(fd, 0, SEEK_END);
-//     char a = 'a';
-//     for (size_t i = 0; i < 1024; i++)
-//     {
-//         mywrite(fd, &a, sizeof(char));
-//     }
-
-//     // printf("+++++++++++++++++++++++++++++++++++++\n");
-//     // mylseek(fd, 0, SEEK_END);
-//     // printofd(fd);
-//     // printf("+++++++++++++++++++++++++++++++++++++\n");
-//     // for (size_t i = 0; i < 1024; i++)
-//     // {
-//     //     mywrite(fd, &a, sizeof(char));
-//     // }
-
-//     printf("+++++++++++++++++++++++++++++++++++++\n");
-//     mylseek(fd, 0, SEEK_SET);
-//     printofd(fd);
-//     printf("+++++++++++++++++++++++++++++++++++++\n");
-
-//     int x = myread(fd, buf, 25000);
-//     buf[x] = '\0';
-//     printf("%s %d\n", buf, (int)strlen(buf));
-
-//     myclose(fd);
-
-//     sync_fs();
-
-//     print_fs();
-
-//     return 0;
-// }

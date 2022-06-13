@@ -26,7 +26,7 @@ In this project we have implemented a file system in C .
 ### (Please make sure to read the notes below relevant to the question being examed)
 
 
-
+### We have created a small "demo" program for testing ! you can try it "./demo"
 
 
 

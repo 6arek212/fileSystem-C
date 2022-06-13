@@ -88,7 +88,7 @@ File system "fs_data2" will have:
 
 </br>
 
-Defualt values:
+Defualt values for upove file systems:
 
     BLOCK SIZE                  512
     NUMBER OF INODE             100
